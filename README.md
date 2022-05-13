@@ -32,3 +32,7 @@
 1. What resources for teaching and learning Bayesian ideas are you familiar with? Please share!
 2. What resources do you think you will use from the workshop?
 3. What resources do you wish were available?
+
+
+### Links to resources
+
