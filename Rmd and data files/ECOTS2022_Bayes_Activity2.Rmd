@@ -1,0 +1,928 @@
+---
+title: "Activity 2: Bayesian Inference and Prediction"
+author: "Kevin Ross, Cal Poly, eCOTS 2022"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+
+---
+
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+
+library(knitr)
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
+
+```
+
+
+```{r package-setup, echo = FALSE}
+
+library(tidyverse)
+library(gridExtra)
+library(brms)
+library(tidybayes)
+library(posterior)
+library(viridis)
+
+set.seed(21234)
+
+bayes_col = c("#56B4E9", "#E69F00", "#009E73", "#CC79A7", "#D55E00") # prior, likelihood, posterior, prior predictive, posterior predictive
+bayes_lty = c("dashed", "dotted", "solid") # prior, likelihood, posterior
+
+```
+
+# Introduction
+
+**This activity is also suitable for an introductory statistics class.**
+
+In Activity 1 we saw how probability distributions can be used to quantify uncertainty about a single parameter, both before (prior) and after (posterior) observing sample data.
+However, almost all interesting problems involve multiple parameters.
+When there are multiple parameters, formulating a prior distribution of any single parameter can be difficult.
+It is often more helpful to consider the prior predictive distributions of the response variable when tuning the prior distribution of parameters. 
+After observing data, posterior predictive distributions can also be used for model checking, and for making predictions.
+
+
+The posterior distribution is the conditional distribution of parameters given the observed data.
+In Activity 1, we saw two methods for approximating the posterior distribution: grid approximation and simulation.
+Grid approximation is usually computationally infeasible, especially in problems with many parameters.
+In almost all practical problems the posterior distribution is approximated via simulation.
+However, naive simulation like what we did in Activity 1 (e.g., discard all the simulated samples that don't match the observed data) is horribly inefficient.
+MCMC algorithms allow us to simulate efficiently from posterior distributions.
+
+
+This activity will introduce, in the context of inference for a numerical variable:
+
+- How prior predictive distributions can be used to tune prior distributions of multiple parameters
+- How software can be used to find posterior distributions of parameters
+- How posterior distributions can be used for making inference about parameters
+- How posterior predictive distributions can be used for model checking and to make predictions
+
+
+## Instructions
+
+
+- Work on the activity together in your small groups.
+- Each section has multiple tabs.
+    - First, think about and discuss the **Questions**.
+    These questions are examples of questions that we would ask students.
+    - Then read and discuss briefly the **Short solution**.
+    - For later reference, slightly longer solutions with additional comments are provided in the **Discussion**.
+    - Some **Code** is also provided for later reference.
+    In the interest of time, we recommend that you don't run the code or worry about syntax.
+- **Ask questions of Kevin and Monika as you go!**
+
+
+## Notes
+
+
+- In the interest of time we assume that workshop participants have some familiarity with:
+   - named probability distributions (like Binomial, Normal)
+   - simulation-based inference, such as using applets (e.g., RossmanChance, StatKey)
+   - sampling distributions
+   - the idea of a likelihood function and maximum likelihood
+   - R
+- But students only need minimal background in probability or statistics (e.g., probabilities must sum to 1), and no experience with coding is required.
+- This activity is a compact version of how we would present this material in class.
+The exercises in this activity would be expanded and stretched out over several classes.
+- When presenting to students, we would take a lot more time and care in introducing terminology and ideas than we have here.
+(We have included a few notes along the way.)
+
+
+
+
+
+# Setup
+
+
+How late do people arrive at parties?
+[FiveThirtyEight](https://fivethirtyeight.com/features/how-to-estimate-when-people-will-arrive-at-a-party/) conducted a survey to address this question.
+We'll assume this is a reasonably representative sample and arrival times are measured reliably.
+Arrival times are measured in minutes after the scheduled start time, rounded to the nearest minute.
+(Negative arrival times represent arrivals before the scheduled start time.)
+
+
+# Formulating assumptions and prior predictive tuning {.tabset}
+
+
+Before exploring the sample data, let's consider our assumptions.
+
+
+## Questions
+
+
+1. What would you expect the population distribution of arrival times to look like?
+For example, what percent of arrivals would you expect to be early (negative)?
+Later than two hours?
+What would you expect of other features like shape, center, and variability?
+
+
+1. We will start by assuming that, given the values of relevant parameters, arrival times follow a Normal distribution.
+Describe what this assumption says about arrival times.
+What are the relevant parameters, and what do they represent?
+(We will revisit this conditional Normal assumption later, but go with it for now.)
+
+
+1. What do you think is a reasonable prior distribution for the population mean $\mu$?
+A few things to consider:
+
+   - What is your "best guess" for $\mu$?
+   - What range of values do you think it is 2 times more plausible for $\mu$ to lie inside rather than outside?
+   (This corresponds to a 67% prior credible interval for $\mu$.
+   Replacing 2 with 2.1 corresponds to a 68% prior credible interval for $\mu$.)
+   - What range of values do you think it is 19 times more plausible for $\mu$ to lie inside rather than outside?
+   (This corresponds to a 95% prior credible interval for $\mu$.)
+   - What is a reasonable prior standard deviation for $\mu$?
+   (Thinking in terms of intervals like the above might help.)
+   - Remember, there is no perfect prior; just formulate what you think is a reasonable starting point.  
+
+
+
+1. Repeat the previous part to formulate a reasonable prior distribution for the population standard deviation $\sigma$.
+(*It's trickier to formulate priors for standard deviations.*
+*Rather than stressing out about prior distributions of individual parameters, we'll focus on prior predictive tuning.*)
+
+
+1. Describe how you could simulate many arrival times according to the assumptions of your model.
+
+
+1. The applet https://kevin-davisross.shinyapps.io/Normal-Prior-Predictive/ conducts the simulation from the previous part.
+Move the sliders to enter your prior mean and SD for $\mu$ and $\sigma$.
+Does the distribution of arrival times seem reasonable based on your expectations?
+For example, what percent of arrivals are early (negative), or later than two hours --- and do these values seem reasonable?
+If not, revise your assumptions and try again (i.e., play with the sliders in the applet) until you find a distribution that is reasonable.
+Do not worry about getting it perfect; you just want to settle on assumptions that provide a reasonable starting point.
+(The assumptions include both the conditional Normal model for arrival times and the prior distribution of parameters.
+For now we are focusing on the prior distribution, so take the conditional Normal model as given.
+We'll revisit that assumption later.)
+
+
+## Short solution
+
+
+There are many reasonable responses.
+We'll assume a $N(40, 15)$ prior for the population mean $\mu$, and a $N(30, 10)$ prior for the population standard deviation $\sigma$.
+We could simulate an arrival time by first simulating $\mu$ and $\sigma$ from their prior distributions and then simulating $y$ from a $N(\mu, \sigma)$ distribution.
+
+
+We reemphasize that there is no perfect prior distribution, or prior predictive distribution.
+Rather, we simply need a prior distribution that provides a reasonable starting point.
+What's really important is the posterior distribution, but to get a posterior distribution there needs to be a prior distribution.
+Think of the prior distribution as the initialization step in a numerical algorithm; we just need a reasonable starting point.
+
+
+
+## Discussion
+
+
+1. There are many reasonable responses.
+
+
+1. In a $N(\mu, \sigma)$ distribution, $\mu$ is the population mean arrival time and $\sigma$ is the population standard deviation.
+We're assuming a Normal shape; e.g., 68% of arrival times are within 1 standard deviation of the mean, 95% within 2 SDs, etc.
+
+
+1. There are many reasonable responses.
+If we assume a $N(40, 15)$ prior for $\mu$, we're saying that our best guess of the population mean arrival time $\mu$ is 40 minutes, that it's about two times more plausible that the population mean arrival time lies inside [25, 55] than outside, that's it's about 19 times more plausible that the population mean arrival time lies inside [10, 70] than outside, etc.
+
+
+1. Again, there are many reasonable responses.
+If we assume a $N(30, 10)$ prior for $\sigma$, we're saying that our best guess of the population standard deviation of arrival times is 30 minutes, that it's about two times more plausible that the population SD lies inside [20, 40] than outside, that's it's about 19 times more plausible that the population SD lies inside [10, 50] than outside, etc.
+
+
+1. First, simulate a value of $\mu$ from its prior distribution, say $N(40, 15)$, and a value of $\sigma$ from its prior distribution, say $N(30, 10)$.
+(*We're assuming $\mu$ and $\sigma$ are independent, otherwise we would simulate a $(\mu, \sigma)$ pair from the joint prior distribution.*)
+Given $\mu$ and $\sigma$, simulate an arrival time $y$ from a $N(\mu, \sigma)$ distribution.
+That's one repetition.
+Repeat many times and summarize the simulated $y$ values to approximate the prior predictive distribution.
+
+
+1. See the applet; an example is also show in the Code tab.
+We reemphasize that there is no perfect prior distribution, or prior predictive distribution.
+Rather, we simply need a prior distribution that provides a reasonable starting point.
+What's really important is the posterior distribution, but to get a posterior distribution there needs to be a prior distribution.
+Think of the prior distribution as the initialization step in a numerical algorithm; we just need a reasonable starting point.
+
+    In models with multiple parameters, there can be dependencies between parameters, so interpreting the marginal prior distribution of any single parameter can be difficult.
+    It is often more helpful to consider predictive distributions, which account for the joint distribution of all parameters.
+    Interpreting predictive distributions is often more intuitive since predictive distributions live on the scale of the measured response variable.
+
+
+
+## Code
+
+
+```{r ref.label='package-setup', eval = FALSE}
+
+```
+
+
+Here is the main code for the prior predictive simulation, along with a few simulated repetitions.
+
+
+```{r}
+
+n_rep = 10000
+
+# prior mean and SD for mu
+mu_prior_mean = 40
+mu_prior_sd = 15
+
+# prior mean and SD for sigma
+sigma_prior_mean = 30
+sigma_prior_sd = 10
+
+sim_prior = data.frame(
+  mu = rnorm(n_rep, mu_prior_mean, mu_prior_sd),
+  sigma = rgamma(n_rep,
+                 shape = sigma_prior_mean ^ 2 / sigma_prior_sd ^ 2,
+                 rate = sigma_prior_mean / sigma_prior_sd ^ 2)) %>%
+  mutate(y_predict = rnorm(n_rep, mu, sigma))
+
+sim_prior %>%
+  head() %>%
+  kable()
+
+```
+
+
+Plots of the prior predictive distribution.
+
+```{r}
+
+p1 = sim_prior %>%
+  ggplot(aes(x = y_predict)) +
+  geom_density(col = bayes_col[4]) +
+  labs(x = "Arrival time (minutes)",
+       title = "Simulated prior predictive distribution of arrival times: Density") +
+  scale_x_continuous(breaks = seq(-60, 180, by = 30),
+                     limits = c(-60, 180)) +
+  theme_bw()
+
+p2 = sim_prior %>%
+  ggplot(aes(x = y_predict)) +
+  stat_ecdf(col = bayes_col[4]) +
+  labs(x = "Arrival time (minutes)",
+       y = "Cumulative probability",
+       title = "Simulated prior predictive distribution of arrival times: CDF") +
+  scale_x_continuous(breaks = seq(-60, 180, by = 30),
+                     limits = c(-60, 180)) +
+  theme_bw()
+
+grid.arrange(p1, p2)
+
+
+```
+
+
+Here is some code for creating a rough [applet](https://kevin-davisross.shinyapps.io/Normal-Prior-Predictive/) that you can embed within an RMarkdown file by adding `runtime: shiny` to the YAML metadata; see [Shiny Documents](https://bookdown.org/yihui/rmarkdown/shiny-documents.html).
+(This code is not evaluated; you would need to run it on your own.)
+
+
+```{r, eval = FALSE}
+
+sliderInput("mu_prior_mean", "Prior mean of mu:", value = 10, min = -60, max = 120)
+
+sliderInput("mu_prior_sd", "Prior SD of mu:", value = 10, min = 5, max = 120)
+
+sliderInput("sigma_prior_mean", "Prior mean of sigma:", value = 10, min = 5, max = 120)
+
+sliderInput("sigma_prior_sd", "Prior SD of sigma:", value = 10, min = 5, max = 120)
+
+renderPlot({
+  
+  n_rep = 10000
+  
+  sim_prior = data.frame(
+    mu = rnorm(n_rep, input$mu_prior_mean, input$mu_prior_sd),
+    sigma = rgamma(n_rep,
+                   shape = input$sigma_prior_mean ^ 2 / input$sigma_prior_sd ^ 2,
+                   rate = input$sigma_prior_mean / input$sigma_prior_sd ^ 2)) %>%
+    mutate(y_predict = rnorm(n_rep, mu, sigma))
+  
+  p1 = sim_prior %>%
+    ggplot(aes(x = y_predict)) +
+    geom_density(col = bayes_col[4]) +
+    labs(x = "Arrival time (minutes)",
+         title = "Simulated prior predictive distribution of arrival times: Density") +
+    scale_x_continuous(breaks = seq(-60, 180, by = 30),
+                         limits = c(-60, 180)) +
+    theme_bw()
+
+  p2 = sim_prior %>%
+    ggplot(aes(x = y_predict)) +
+    stat_ecdf(col = bayes_col[4]) +
+    labs(x = "Arrival time (minutes)",
+         y = "Cumulative probability",
+         title = "Simulated prior predictive distribution of arrival times: CDF") +
+    scale_x_continuous(breaks = seq(-60, 180, by = 30),
+                         limits = c(-60, 180)) +
+    theme_bw()
+  
+  grid.arrange(p1, p2)
+    
+})
+
+```
+
+
+
+# Approximating the posterior distribution via simulation {.tabset}
+
+
+Your prior distribution is whatever it is and reflects your background knowledge of the situation.
+But so that we're all on the same page, let's assume that
+
+- We have a representative random sample of arrival times $y$ (minutes)
+- Given $\mu$ and $\sigma$, arrival times follow a Normal distribution with mean $\mu$ and standard deviation $\sigma$
+- The prior distribution for $\mu$ is Normal with mean 40 minutes and standard deviation 15 minutes
+- The prior distribution for $\sigma$ is a Gamma distribution with mean 30 minutes and standard deviation 10 minutes.
+(*We are assuming a Gamma distribution since $\sigma > 0$, but we could also use a Normal distribution truncated at 0.*
+*With students, especially early on, we often use Normal distributions as priors.*)
+
+In symbols, our model assumes: (*We would not require this notation of introductory statistics students*)
+
+\begin{align*}
+y_i | \mu, \sigma & \stackrel{\text{i.i.d.}}{\sim} N(\mu, \sigma)\\
+\mu & \sim N(40, 15)\\
+\sigma & \sim N(30, 10)\\
+\mu, \sigma & \quad \text{are independent}
+\end{align*}
+
+Now we'll observe some sample data.
+Our goal is to find the posterior distribution of the parameters $\mu$ and $\sigma$ given the data.
+
+For illustration, first suppose that only six arrival times are measured: 4, 8, 15, 16, 23 and 42 minutes (rounded to the nearest minute).
+
+
+## Questions
+
+
+1. In principle, how could you conduct a simulation and use the results to approximate the (joint) posterior distribution of $\mu$ and $\sigma$ given the data?
+(Remember, the posterior distribution is the conditional distribution of parameters given the data.
+Think about what we did in Activity 1.)
+
+
+1. A few repetitions of simulated $(\mu, \sigma)$ pairs, along with simulated samples of 6 arrival times, are displayed below.
+What is the practical difficulty with using such a simulation to approximate the posterior distribution?
+
+
+    ```{r naive-sim, echo = FALSE}
+
+n_rep = 10
+
+data.frame(rep = 1:n_rep,
+           mu = rnorm(n_rep, 40, 15),
+           sigma = rnorm(n_rep, 30, 10)) %>%
+  mutate(samples = map(rep, ~sort(round(rnorm(6, mu, sigma), 0)))) %>%
+  kable(align = 'r', digits = 1)
+  
+```
+
+
+
+1. In practice we will use sophisticated algorithms to approximate the posterior distribution via simulation.
+For now, we'll ignore the details of how the algorithms work; just know that they simulate values from the posterior distribution --- that is, the conditional distribution of parameters given the sample data --- much more efficiently than our naive simulation above.
+Instead, we'll focus on specifying the input and interpreting the output.
+Describe what we need to input into the algorithm.
+That is, what are the main ingredients we need to find the posterior distribution?
+(Hint: there are three; it might help to think about a Bayes table.)
+
+
+## Short solution
+
+
+In principle, the posterior distribution of $\mu, \sigma$ given the observed sample (4, 8, 15, 16, 23, 42) can be found via the following.
+
+- Simulate a $(\mu, \sigma)$ pair from the prior distribution
+- Given $\mu, \sigma$, simulate a sample of size 6 from a $N(\mu, \sigma)$ distribution (rounded to the nearest minute.)
+- If the simulated sample is (4, 8, 15, 16, 23, 42) keep the repetition; otherwise discard it
+- Repeat the process until enough non-discarded repetitions are obtained --- all corresponding to samples with (4, 8, 15, 16, 23, 42)
+- Summarize the simulated $\mu, \sigma$ values to approximate the posterior distribution.
+
+However, the likelihood of producing a sample that matches the observed data is essentially 0, simply because there are so many possible samples.
+
+Regardless of which simulation algorithm we use, there are 3 main inputs
+
+- the data
+- a parametric model for the data (which determines the likelihood), e.g. $y | \mu, \sigma \sim N(\mu, \sigma)$.
+- a prior distribution for parameters
+
+
+## Discussion
+
+
+In principle, the posterior distribution of $\mu, \sigma$ given the observed sample (4, 8, 15, 16, 23, 42) can be found via the following.
+
+- Simulate a $(\mu, \sigma)$ pair from the prior distribution
+- Given $\mu, \sigma$, simulate a sample of size 6 from a $N(\mu, \sigma)$ distribution.
+(The values in the simulated sample would need to be rounded to some desired degree of precision, to the nearest minute here.)
+- If the simulated sample is (4, 8, 15, 16, 23, 42) keep the repetition; otherwise discard it
+- Repeat the process until enough non-discarded repetitions are obtained --- all corresponding to samples with (4, 8, 15, 16, 23, 42)
+- Summarize the simulated $\mu, \sigma$ values to approximate the posterior distribution.
+
+However, the likelihood of producing a sample that matches the observed data is essentially 0, simply because there are so many possible samples.
+(Without rounding, the probability would be 0 for a continuous variable.)
+While in principle this method works, in practice it would be horribly inefficient since virtually all repetitions would be discarded.
+Even if the relatively simple problem in Activity 1, in 100,000 repetitions there were only around 5000 that were not discarded.
+
+Therefore, we need more efficient simulation algorithms for approximating posterior distributions.
+Markov chain Monte Carlo (MCMC) methods provide powerful and widely applicable algorithms for simulating from probability distributions, including complex and high-dimensional distributions.
+These algorithms include Metropolis-Hastings, Gibbs sampling, Hamiltonian Monte Carlo, among others.
+There are many related software packages (e.g., JAGS, Stan), along with many R packages for running MCMC algorithms and performing Bayesian analyses within R (e.g., `rjags`, `runjags`, `brms`, `rstanarm`).
+There are also many R packages that can be used to summarize output from a variety of sources (e.g., `bayesplot`, `tidybayes`.)
+
+
+Regardless of which algorithm we use, there are 3 main inputs
+
+- the data
+- a parametric model for the data (which determines the likelihood), e.g. $y | \mu, \sigma \sim N(\mu, \sigma)$.
+- a prior distribution for parameters
+
+
+## Code
+
+
+Here is some code for running the naive simulation.
+
+
+```{r, ref.label=c('naive-sim'), eval = FALSE}
+
+```
+
+
+# The posterior distribution, and inference about $\mu$ {.tabset}
+
+
+Recall our assumptions from before.
+We will now load the FiveThirtyEight data and use it to fit the model and find the posterior distribution.
+
+The data is contained in the party-time.csv file; the "minutes" variable contains 803 arrival times (rounded to the nearest minute).
+(*We couldn't find the raw FiveThirtyEight data online, so this data is simulated to match the histogram in the article.*)
+
+
+
+```{r}
+
+data = read.csv("party-time.csv")
+
+```
+
+
+We should always first explore the sample data, but to illustrate a point we will not do that yet.
+Instead, we'll skip straight to fitting the model.
+
+Here is some code for fitting the model to the data using the `brms` package.
+The three inputs are
+
+- Input 1: the data  
+`data = data`
+
+- Input 2: model for the data (likelihood)  
+`family = gaussian`  
+`minutes ~ 1 # linear model with intercept (mean) only`
+
+- Input 3: prior distribution for parameters  
+`prior = c(prior(normal(40, 15), class = Intercept), # prior for mu`  
+`          prior(gamma(30, 10), class = sigma)) # prior for sigma`
+
+- Other arguments specify the details of the numerical algorithm; our specifications below will result in 10000 $(\mu, \sigma)$ pairs simulated from the posterior distribution; a few simulated values are displayed below.
+
+
+```{r brm-fit, cache=TRUE, message = FALSE, warning = FALSE}
+
+fit <- brm(data = data,
+           family = gaussian,
+           minutes ~ 1,
+           prior = c(prior(normal(40, 15), class = Intercept),
+                     prior(gamma(30, 10), class = sigma)),
+           iter = 11000,
+           warmup = 1000,
+           chains = 1,
+           refresh = 0)
+
+```
+
+
+```{r post-df, echo = FALSE}
+
+posterior = fit %>%
+  spread_draws(b_Intercept, sigma) %>%
+  rename(mu = b_Intercept)
+
+posterior %>%
+  head() %>%
+  kable()
+
+```
+
+
+We will focus on summarizing and interpreting the posterior distribution of $\mu$, using the following plots created based on the `brms` output.
+
+
+```{r, ref.label=c('mu-post-plots'), echo = FALSE, fig.show="hold", out.width="50%"}
+
+```
+
+
+*Note: we will see below that a conditional Normal model is not really appropriate for this data, and we will refit the model soon.*
+*In class, we would start with a situation and data where a conditional Normal model is appropriate and inference about $\mu$ is the main concern, and we would cover posterior inference for $\mu$ before covering posterior prediction or posterior predictive checking.*
+*This is why we're asking questions about the posterior distribution of $\mu$ now, even though we're going to refit the model later.*
+
+
+## Questions
+
+
+1. Describe the posterior distribution of $\mu$.
+What does this tell you?
+
+
+1. Find and interpret a 50% posterior credible interval for $\mu$.
+
+
+1. Find and interpret an 80% posterior credible interval for $\mu$.
+
+
+1. Find and interpret a 98% posterior credible interval for $\mu$.
+
+
+1. Find and interpret the posterior probability that $\mu$ is greater than 60 minutes.
+
+
+## Short solution
+
+
+There is a 98% posterior probability that the population mean arrival time is between `r round(quantile(posterior$mu, 0.01), 0)`  and `r round(quantile(posterior$mu, 0.99), 0)` minutes.
+It is 49 times more plausible that population mean arrival time lies inside the interval [`r round(quantile(posterior$mu, 0.01), 0)`, `r round(quantile(posterior$mu, 0.99), 0)`] than outside.
+
+There is a posterior probability of about 99.9% that population mean waiting time is greater than 60 minutes.
+(*Of course, this does not necessarily mean $\mu$ is much greater than 60.*)
+
+
+
+## Discussion
+
+
+*Again, we're going to refit the model, so don't put much weight on the results in this section.*
+*But they do provide an illustration of Bayesian inference about the population mean.*
+
+
+
+1. The posterior distribution of $\mu$ is approximately Normal with mean `r round(mean(posterior$mu), 0)` minutes and standard deviation `r round(sd(posterior$mu), 1)` minutes.
+Our best guess for the population mean arrival time is `r round(mean(posterior$mu), 1)` minutes, and `r round(sd(posterior$mu), 1)` minutes summarizes in a single number our degree of uncertainty about the population mean arrival time.
+
+
+1. There is a 50% posterior probability that the population mean arrival time is between `r round(quantile(posterior$mu, 0.25), 0)`  and `r round(quantile(posterior$mu, 0.75), 0)` minutes.
+It is equally plausible that population mean arrival time lies inside the interval [`r round(quantile(posterior$mu, 0.25), 0)`, `r round(quantile(posterior$mu, 0.75), 0)`] than outside.
+
+
+1. There is an 80% posterior probability that the population mean arrival time is between `r round(quantile(posterior$mu, 0.1), 0)`  and `r round(quantile(posterior$mu, 0.9), 0)` minutes.
+It is 4 times more plausible that population mean arrival time lies inside the interval [`r round(quantile(posterior$mu, 0.1), 0)`, `r round(quantile(posterior$mu, 0.9), 0)`] than outside.
+
+
+1. There is a 98% posterior probability that the population mean arrival time is between `r round(quantile(posterior$mu, 0.01), 0)`  and `r round(quantile(posterior$mu, 0.99), 0)` minutes.
+It is 49 times more plausible that population mean arrival time lies inside the interval [`r round(quantile(posterior$mu, 0.01), 0)`, `r round(quantile(posterior$mu, 0.99), 0)`] than outside.
+
+1. There is a posterior probability of about 99.9% that population mean waiting time is greater than 60 minutes.
+(*Of course, this does not necessarily mean $\mu$ is much greater than 60.*)
+
+
+
+
+
+## Code
+
+
+The brms code is repeated here.
+
+```{r, ref.label=c('brm-fit'), eval = FALSE}
+
+```
+
+
+Here are some plots and summaries of the simulated posterior distribution, along with some diagnostics.
+
+
+```{r}
+
+plot(fit)
+
+```
+
+
+```{r}
+
+summary(fit)
+
+```
+
+
+There are many packages and functions for working with output from Bayesian analyses.
+Using `spread_draws` from the `tidybayes` package, we can put the 10000 simulated values into a data frame.
+Then we can summarize the posterior distribution just like we summarize any data set.
+
+
+```{r, ref.label=c('post-df'), eval = FALSE}
+
+```
+
+
+Here is a ggplot of the posterior distribution, density and cdf, of $\mu$.
+
+
+```{r mu-post-plots, fig.show="hold", out.width="50%"}
+
+posterior %>%
+  ggplot(aes(x = mu)) +
+  geom_density(col = bayes_col[3]) +
+  labs(title = "Posterior density of mu") +
+  theme_bw()
+
+posterior %>%
+  ggplot(aes(x = mu)) +
+  stat_ecdf(col = bayes_col[3]) +
+  labs(title = "Posterior cdf of mu",
+       y = "Cumulative probability") +
+  theme_bw()
+
+```
+
+
+Quantiles of the posterior distribution of $\mu$ are endpoints of credible intervals.
+
+```{r}
+
+posterior %>%
+  summarise(enframe(quantile(mu, c(0.01, 0.10, 0.25, 0.75, 0.90, 0.99)), "quantile", "mu")) %>%
+  kable()
+
+```
+
+
+Can approximate posterior probabilities as usual.
+
+```{r}
+
+sum(posterior$mu > 60) / length(posterior$mu)
+
+```
+
+
+# Posterior predictive checking {.tabset}
+
+
+## Questions
+
+
+1. Recall that we simulated the prior predictive distribution of arrival times, prior to observing data.
+Describe how you could simulate the posterior predictive distribution of arrival times, after fitting the model to the data.
+
+
+1. The sample data is summarized below.
+(Remember, we should have done this before fitting the model.)
+Do you think our model is reasonable?
+Why?
+
+
+    ```{r, ref.label=c('data-plot'), echo = FALSE}
+
+```
+
+
+1. The posterior predictive distribution represents the distribution of arrival times according to the model fit based on the data.
+We can perform a visual posterior predictive check (`pp_check`) to see if the model is reasonable by comparing hypothetical samples simulated from the posterior predictive distribution to the observed sample.
+What does the plot below say about the appropriateness of our model?
+
+
+    ```{r, ref.label=c('pp-check'), echo = FALSE}
+
+```
+
+
+## Discussion
+
+
+1. The simulation is similar to the prior predictive distribution; but now we simulate $(\mu, \sigma)$ pairs from their posterior distribution.
+First, simulate $(\mu, \sigma)$ pair from the posterior distribution; software has already done this for us - we have 10000 simulated pairs.
+For each $\mu, \sigma$ pair, simulate an arrival time $y$ from a $N(\mu, \sigma)$ distribution.
+Summarize the simulated $y$ values to approximate the prior predictive distribution.
+
+
+1. The sample data is clearly skewed to the right, so a conditional Normal model is probably not appropriate.
+
+
+1. If there is a good fit, then replicated data generated under the model should look similar to the observed data.
+But here the observed data seems inconsistent with the posterior predictive distribution, which indicates the fit is poor.
+(“Based on the data we observed, we conclude that it would be unlikely to observe the data we observed???”)
+
+
+## Code
+
+
+Data is summarized as usual.
+
+```{r data-plot}
+
+data %>%
+  ggplot(aes(x = minutes)) +
+  geom_histogram(aes(y=..density..), col = "black", fill = "white") +
+  geom_density(size = 2) +
+  theme_bw()
+
+```
+
+
+We can perform a visual posterior predictive check (`pp_check`) to see if the model is reasonable by comparing hypothetical samples simulated from the posterior predictive distribution to the observed sample.
+
+
+```{r pp-check}
+
+pp_check(fit, ndraws = 100)
+
+```
+
+
+# Posterior prediction {.tabset}
+
+
+The sample data suggests a model that allows for skewness would be more appropriate than Normal.
+This primarily results in a change of the likelihood function.
+There are several likelihood functions we can use, but we'll try a [Skew Normal](https://en.wikipedia.org/wiki/Skew_normal_distribution) family, which introduces an additional skewness parameter $\alpha$.
+Since $\alpha$ is a parameter it also needs a prior distribution.
+Rather than redoing our prior predictive tuning, we'll rely on the fact that software packages like `brms` can utilize default priors.
+
+```{r brm-fit2, cache=TRUE, echo = FALSE}
+
+fit2 <- brm(data = data,
+           family = skew_normal,
+           minutes ~ 1,
+           prior = c(prior(normal(40, 15), class = Intercept),
+                     prior(gamma(30, 10), class = sigma)),
+           iter = 11000,
+           warmup = 1000,
+           chains = 1,
+           refresh = 0)
+
+```
+
+
+*Especially when first encountering Bayesian analyses, outsized attention is often paid to the prior distribution.*
+*It's important to remember that the prior is only one part of the Bayesian model.*
+*The likelihood is the other part, which also involves many assumptions.*
+*And there is the data that is used to fit the model, and all the considerations that go into how the data were collected.*
+*We like to introduce early an example like this one where the assumptions in the likelihood are invalid  to emphasize that choice of prior is just one of many modeling assumptions that should be evaluated and checked.*
+
+
+
+## Questions
+
+
+1. Perform a posterior predictive check of the Skew Normal model.
+Does it seem more reasonable than the Normal model?
+
+
+    ```{r, ref.label=c('pp-check2'), echo = FALSE}
+
+```
+
+
+1. Find and interpret a 95% prediction interval.
+
+
+    ```{r, ref.label=c('pp-plot2'), echo = FALSE}
+
+```
+
+
+## Short solution
+
+
+A posterior predictive check reveals that the Skew Normal model is much more appropriate than the Normal model.
+(The Skew Normal model might not be the best, but we should also be wary of overfitting the data.)
+
+
+Based on this model we predict that 95% of arrival times are between -14 and 162 minutes.
+
+
+## Code
+
+
+The code is similar to above, with `gaussian` replaced by `skew_normal`.
+Note that we have not specified a prior for $\alpha$, so a default prior will be used.
+
+```{r, ref.label=c('brm-fit2'), eval = FALSE}
+
+```
+
+
+
+Note that the posterior distribution now quantifies the uncertainty in three parameters.
+
+
+```{r}
+
+plot(fit2)
+
+```
+
+
+```{r}
+
+summary(fit2)
+
+```
+
+
+Here is a graphical posterior predictive check.
+
+
+```{r pp-check2}
+
+pp_check(fit2, ndraws = 100)
+
+```
+
+
+Here is a plot of the posterior predictive distribution.
+
+
+```{r pp-plot2}
+
+data.frame(y_predict = posterior_predict(fit2, newdata = 1)) %>%
+  ggplot(aes(x = y_predict)) +
+  geom_density(col = bayes_col[5]) + 
+  theme_bw()
+
+```
+
+
+We could use quantiles of the predicted values or built in functions to find a predictive interval.
+
+```{r}
+
+predictive_interval(fit2, prob = 0.95, newdata = 1)
+
+```
+
+
+# Wrap up {.tabset}
+
+
+## Summary
+
+
+- Most interesting problems involve multiple parameters, so prior/posterior distributions are multivariate distributions.
+- The posterior distribution is almost always approximated using MCMC simulation algorithms and software.
+- The main inputs to an MCMC algorithm are: data, likelihood, and prior
+- MCMC algorithms implement Bayesian updating --- posterior is proportional to the product of prior and likelihood --- in a computationally efficient way.
+- Prediction is natural in Bayesian analyses.
+- Prior predictive distributions can help tune prior distributions of parameters.
+- Posterior predictive distributions can help diagnose the model fit, and can be used for making predictions.
+
+
+## Comments
+
+
+- Students don't necessarily need to know how MCMC algorithms work.
+Activity 1 illustrated the basic process of posterior simulation and the Bayesian paradigm.
+Just tell students that MCMC algorithms implement the process more efficiently.
+- Students should focus on specifying the input (data, likelihood, prior) and interpreting the output (posterior).
+- Students don't necessarily need to code; you can just give them summaries of the posterior distribution.
+- Can teach Bayesian statistics using a simulation-based approach.
+Even if students aren't coding, we still like to ask lots of "how would you simulate this?" questions to assess understanding of the process.
+- Students can easily get confused by all the distributions.
+Be careful to distinguish between prior/posterior distributions of parameters and prior/posterior predictive distributions of values of the measured variables.
+- Be careful to distinguish between all the different standard deviations.
+Ask lots of questions like "this SD measures variability/uncertainty of what?".
+- Bayesian analyses are inherently multivariable (because parameters are variables), giving students lots of experience with multivariable thinking (a GAISE guideline).
+- Choice of prior is just one assumption.
+Don't spend too much time on choosing the prior.
+It's the posterior that matters!
+- Remember, Bayesian statistics is statistics.
+The same best practices that you use in other classes still apply.
+In particular, focus on conceptual understanding rather than calculus, computation, or coding. 
+
+
+## Further topics to investigate with students
+
+
+- Many of the same questions from Activity 1, like how sensitive is the posterior to choice of prior?
+- Choice of likelihood to reflect skewness and the Skew Normal model.
+- Revise the inference about $\mu$ based on the Skew Normal model.
+- Cover credible intervals versus prediction intervals in more detail.
+- What might explain the variability in arrival times (e.g., size of party)?
+Could bridge to regression or hierarchical models.
+- Compare Bayesian with frequentist.
+- Be sure to also include plenty of "usual" statistics questions.
+For example, the party time data provides a good opportunity to discuss mean versus median.
+
+
+## Resources
+
+
+- The [brms](https://paul-buerkner.github.io/brms/index.html) package
+- [JASP](https://jasp-stats.org/) is point-and-click software for performing some Bayesian (and frequentist) analyses
+- [ShinyStan](https://mc-stan.org/users/interfaces/shinystan) is a nice interactive tool for exploring output of a Bayesian analysis.
