@@ -1,6 +1,6 @@
 ---
 title: "Activity 2: Bayesian Inference and Prediction"
-author: "Kevin Ross, Cal Poly, eCOTS 2022"
+author: "Jingchen (Monika) Hu (Vassar) and Kevin Ross (Cal Poly), eCOTS 2022"
 output:
   html_document:
     toc: true
@@ -66,7 +66,7 @@ This activity will introduce, in the context of inference for a numerical variab
 
 
 - Work on the activity together in your small groups.
-- Each section has multiple tabs.
+- Each section in this document has multiple tabs.
     - First, think about and discuss the **Questions**.
     These questions are examples of questions that we would ask students.
     - Then read and discuss briefly the **Short solution**.
@@ -487,7 +487,7 @@ The three inputs are
 
 - Input 3: prior distribution for parameters  
 `prior = c(prior(normal(40, 15), class = Intercept), # prior for mu`  
-`          prior(gamma(30, 10), class = sigma)) # prior for sigma`
+`          prior(normal(30, 10), class = sigma)) # prior for sigma`
 
 - Other arguments specify the details of the numerical algorithm; our specifications below will result in 10000 $(\mu, \sigma)$ pairs simulated from the posterior distribution; a few simulated values are displayed below.
 
@@ -498,7 +498,7 @@ fit <- brm(data = data,
            family = gaussian,
            minutes ~ 1,
            prior = c(prior(normal(40, 15), class = Intercept),
-                     prior(gamma(30, 10), class = sigma)),
+                     prior(gamma(30, 30 ^ 2 / 10 ^ 2), class = sigma)), # gamma(mean, shape)
            iter = 11000,
            warmup = 1000,
            chains = 1,
@@ -702,7 +702,7 @@ What does the plot below say about the appropriateness of our model?
 ```
 
 
-## Discussion
+## Short solution
 
 
 1. The simulation is similar to the prior predictive distribution; but now we simulate $(\mu, \sigma)$ pairs from their posterior distribution.
@@ -728,7 +728,7 @@ Data is summarized as usual.
 
 data %>%
   ggplot(aes(x = minutes)) +
-  geom_histogram(aes(y=..density..), col = "black", fill = "white") +
+  geom_histogram(aes(y = ..density..), col = "black", fill = "white") +
   geom_density(size = 2) +
   theme_bw()
 
@@ -760,7 +760,7 @@ fit2 <- brm(data = data,
            family = skew_normal,
            minutes ~ 1,
            prior = c(prior(normal(40, 15), class = Intercept),
-                     prior(gamma(30, 10), class = sigma)),
+                     prior(gamma(30, 30 ^ 2 / 10 ^ 2), class = sigma)), # gamma(mean, shape)
            iter = 11000,
            warmup = 1000,
            chains = 1,

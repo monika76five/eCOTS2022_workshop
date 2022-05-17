@@ -1,0 +1,1148 @@
+---
+title: "Activity 1: Introducing Bayesian Reasoning"
+author: "Jingchen (Monika) Hu (Vassar) and Kevin Ross (Cal Poly), eCOTS 2022"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+
+library(knitr)
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
+
+```
+
+
+```{r package-setup, echo = FALSE}
+
+library(tidyverse)
+library(janitor)
+library(viridis)
+library(scales)
+
+set.seed(21234)
+
+bayes_col = c("#56B4E9", "#E69F00", "#009E73") # prior, likelihood, posterior
+bayes_lty = c("dashed", "dotted", "solid") # prior, likelihood, posterior
+
+```
+
+
+# Introduction
+
+
+**This activity, which assumes no previous background in Bayesian statistics, will provide examples of how you can introduce Bayesian statistical reasoning in an introductory statistics class.**
+In Bayesian statistical analyses, uncertainty regarding population parameters is quantified by probability distributions, both before observing data (prior distribution) and after observing data (posterior distribution).
+This activity will contain examples illustrating, in the context of estimating a population proportion:
+
+- How assessments of "relative plausibility" of parameters can be translated into probability distributions.
+- How simulation can be used to approximate posterior distributions.
+- How posterior distributions can be computed in tables/spreadsheets using the Bayesian paradigm: posterior is proportional to the product of prior and likelihood.
+- How parameters can be estimated with credible intervals obtained from prior/posterior distributions.
+
+
+## Instructions
+
+
+- Work on the activity together in your small groups.
+- Each section in this document has multiple tabs.
+    - First, think about and discuss the **Questions**.
+    These questions are examples of questions that we would ask students.
+    - Then read and discuss briefly the **Short solution**.
+    - For later reference, slightly longer solutions with additional comments are provided in the **Discussion**.
+    - Some **Code** is also provided for later reference.
+    In the interest of time, we recommend that you don't run the code or worry about syntax.
+- **Ask questions of Kevin and Monika as you go!**
+
+
+## Notes
+
+
+- In the interest of time we assume that workshop participants have some familiarity with:
+   - named probability distributions (like Binomial, Normal)
+   - simulation-based inference, such as using applets (e.g., RossmanChance, StatKey)
+   - sampling distributions
+   - the idea of a likelihood function and maximum likelihood
+   - R
+- But students only need minimal background in probability or statistics (e.g., probabilities must sum to 1), and no experience with coding is required.
+- This activity is a compact version of how we would present this material in class.
+The exercises in this activity would be expanded and stretched out over several classes.
+- When presenting to students, we would take a lot more time and care in introducing terminology and ideas than we have here.
+(We have included a few notes along the way.)
+
+
+# Setup
+
+
+A [recent survey conducted by the Pew Research Center](https://www.pewresearch.org/science/2019/03/28/what-americans-know-about-science/) of American adults asked:
+"Based on what you have heard or read, which of the following two statements best describes the scientific method?"
+
+- "The scientific method produces findings meant to be continually tested
+and updated over time".
+(We'll call this the "iterative" statement.)
+- "The scientific method identifies unchanging core principles and truths".
+(We'll call this the "unchanging" statement.)
+- Not sure which of the two statements is best.
+
+Suppose we're interested in **the proportion of current [*insert your college/university here*] students who agree with the iterative statement**.
+We’ll refer to this proportion as the “population proportion” and denote it as $\theta$ (the Greek letter “theta”).
+We will collect data on a sample of current students and use the sample data to make conclusions about $\theta$.
+In particular, given the sample data, what values are more or less plausible for $\theta$?
+
+To illustrate ideas, we'll start by considering only the values 0.1, 0.3, 0.5, 0.7, 0.9 as possible for the population proportion $\theta$.
+(Of course this is unrealistic; we'll consider a more practical situation soon.)
+That is, we want to assess our relative plausibility of the statements:
+
+- 10% of current students agree with the iterative statement
+- 30% of current students agree with the iterative statement
+- 50% of current students agree with the iterative statement
+- 70% of current students agree with the iterative statement
+- 90% of current students agree with the iterative statement
+
+We'll make an assessment before collecting sample data (the *prior distribution*), and then revise after we have observed some data (the *posterior distribution*).
+
+
+# Formulating a prior distribution  {.tabset}
+
+
+## Questions
+
+
+1. Before collecting data, which of these values --- 0.1, 0.3, 0.5, 0.7, 0.9 --- do you think is the least plausible for $\theta$?
+
+
+1. Which value --- 0.1, 0.3, 0.5, 0.7, 0.9 --- do you think is the next least plausible?
+Roughly, how many *times* more plausible do you think it is than the one from the previous part?
+
+   For example, suppose you think that 0.1 is the least plausible and 0.3 is the next least plausible value of $\theta$.
+If you think that 0.3 is 2 times more plausible than 0.1, then, roughly, you would be willing to engage in a bet that $\theta$ is 0.1 versus 0.3 at 2-to-1 odds.
+
+
+1. Continue in the manner of the previous part to assign a relative plausibility to each of the values 0.1, 0.3, 0.5, 0.7, 0.9.
+
+
+1. If 0.1, 0.3, 0.5, 0.7, 0.9 are the only possible values of $\theta$, then they should account for 100% of your total plausibility.
+Using your relative plausibilities from the previous part, what percent of your total plausibility does each of the values 0.1, 0.3, 0.5, 0.7, 0.9 represent?
+Make a table and a plot of your assessment.
+
+
+## Short solution
+
+
+There are many reasonable responses to the previous questions.
+Your initial plausibility is whatever it is and reflects your background knowledge of this situation before collecting sample data.
+Different people will have different assessments --- even within the same college/university --- so there are many reasonable choices.
+
+So that we're all on the same page in what follows, suppose that before collecting sample data, our *prior* assessment of possible values of $\theta$, from least to most plausible, is that:
+
+- 0.1 is least plausible
+- 0.3 is 4 times more plausible than 0.1
+- 0.5 is 3 times more plausible than 0.3
+- 0.9 is 2 times more plausible than 0.5
+- 0.7 is 1.5 times more plausible than 0.9
+
+
+
+
+```{r, ref.label=c('prior-table'), echo = FALSE}
+
+```
+
+
+```{r, ref.label=c('prior-plots'), echo = FALSE}
+
+```
+
+
+## Discussion
+
+
+There are many reasonable responses to the previous questions.
+Your initial plausibility is whatever it is and reflects your background knowledge of this situation before collecting sample data.
+Different people will have different assessments --- even within the same college/university --- so there are many reasonable choices.
+
+So that we're all on the same page in what follows, suppose that before collecting sample data, our *prior* assessment of possible values of $\theta$, from least to most plausible, is that:
+
+- 0.1 is least plausible
+- 0.3 is 4 times more plausible than 0.1
+- 0.5 is 3 times more plausible than 0.3
+- 0.9 is 2 times more plausible than 0.5
+- 0.7 is 1.5 times more plausible than 0.9
+
+The assessment above provides relative plausibilities.
+For example, is 0.1 has 1 "unit" of plausibility, then 0.3 has 4 units, 0.5 has 12 units, 0.9 has 24 units, and 0.7 has 36 units.
+Now we rescale the units to sum to 1 to represent 100% of our prior plausibility.
+
+We could go into a little more detail about how we would calibrate 4 times versus 3 times, etc; for example, using [betting analogies](https://bookdown.org/kevin_davisross/bayesian-reasoning-and-methods/interpretations-of-probability.html#exm:subjective-bet).
+But the prior distribution doesn't have to be perfect; there is no perfect prior distribution.
+We just need a relatively reasonable assessment of plausibility as our starting point.
+It's our assessment after we have collected sample data that really matters.
+*We recommend against overemphasizing issues relating to choice of prior.*
+
+
+## Code
+
+
+```{r ref.label='package-setup', eval = FALSE}
+
+```
+
+
+The code below defines the prior distribution of $\theta$ and displays it in a table and plot.
+
+
+```{r prior-table}
+
+# Define the prior distribution
+
+# Possible values of theta
+theta = seq(0.1, 0.9, 0.2)
+
+# Relative plausibilities, with least plausible as baseline of 1 unit
+units = c(1, 4, 3 * 4, 1.5 * 2 * 3 * 4, 2 * 3 * 4) 
+
+# Rescale units to sum to 1
+prior = units / sum(units)
+
+prior_table = data.frame(theta,
+                         units,
+                         prior)
+
+# Display prior distribution as a table
+
+prior_table %>%
+  adorn_totals("row") %>%
+  kable(col.names = c("theta",
+                      "Prior \"units\" ",
+                      "Prior probability"),
+        digits = 4)
+
+```
+
+
+```{r prior-plots, fig.show="hold", out.width="50%"}
+
+# Display prior distribution in plots
+
+# Plot of prior distribution
+
+prior_table %>%
+  ggplot(aes(x = theta,
+             y = prior)) +
+  geom_point(col = bayes_col[1], size = 2) +
+  geom_line(linetype = "dashed", col = bayes_col[1], size = 1) +
+  scale_x_continuous(limits = c(0, 1),
+                     breaks = theta) +
+  labs(title = "Prior distribution of theta",
+       y = "Prior probability") +
+  theme_bw()
+
+# Pie chart "spinner" for prior distribution
+
+prior_table %>%
+  mutate(theta = factor(theta)) %>%
+  ggplot(aes(x = "",
+             y = -prior, # - for clockwise
+             fill = theta)) +
+  geom_bar(stat = "identity", color = "white") +
+  coord_polar("y") +
+  geom_text(aes(label = percent(prior)),
+            position = position_stack(vjust = 0.5),
+            color = "white") +
+  labs(title = "Prior distribution of theta: Spinner") +
+  theme_void()
+
+```
+
+
+
+# Simulating potential samples given $\theta$  {.tabset}
+
+
+Now suppose we will survey $n = 25$ current students.
+Let $y$ denote the number of students in the sample who agree with the iterative statement.
+First we'll use simulation to investigate what might happen.
+
+
+## Questions
+
+
+1. If $\theta = 0.5$ what do you expect $y$ to be?
+Is this necessarily what we would see?
+If $\theta = 0.5$, how could we use simulation to approximate the distribution of $y$ over many possible samples?
+[Use this applet to conduct the simulation.](https://www.rossmanchance.com/applets/2021/oneprop/OneProp.htm)
+(*In the interest of time we are assuming some familiarity with simulation-based inference, but you could discuss this part and the idea of sampling distributions in more detail with students.*
+*With students, we would conduct some tactile simulations first.*)
+
+
+1. Repeat the previous part for the other possible values of $\theta$, 0.1, 0.3, 0.7, 0.9.
+(Hint: click the "Show sliders" option below the plot.)
+Discuss what these plots tell us.
+
+
+## Short solution
+
+
+The plot below displays the sampling distribution of $y$ for each of the possible values of $\theta$.
+
+
+```{r, ref.label = 'sampling-distributions', echo = FALSE}
+
+```
+
+
+## Discussion
+
+```{r, echo = FALSE}
+
+n = 25
+
+y_obs = 14
+
+```
+
+
+
+For a given value of $\theta$ there is really nothing new beyond what students already learn in introductory statistics; students still need to understand ideas of sampling variability from frequentist statistics.
+Even if the population proportion $\theta$ is known, there is still natural sample-to-sample variability in $y$.
+Given a value of $\theta$, we can approximate the sample-to-sample distribution of $y$ by assuming the population proportion is $\theta$, simulating a sample of size 25 from this population, counting the number of "successes" in the sample, and repeating many times.
+This distribution depends on the value of the population proportion $\theta$; we get a different distribution for what might happen for each possible value of $\theta$.
+For example, if the population proportion is $\theta = 0.5$ then `r 100 * round(dbinom(y_obs, n, 0.5), 4)` percent of samples of size $n = 25$ yield $y = 14$ successes; if the population proportion is $\theta = 0.7$ then `r 100 * round(dbinom(y_obs, n, 0.7), 4)` percent of samples of size $n = 25$ yield $y = 14$ successes.
+If $\theta = 0.1$ we wouldn't expect to see a sample with $y > 9$; if $\theta = 0.9$ we wouldn't expect to see a sample with $y < 16$, etc.
+
+
+
+## Code
+
+
+Rather than coding the simulation that the applet runs, we know that in this situation, given the value of $\theta$, $y$ has a Binomial(25, $\theta$) distribution.
+(*For students, we would just use the simulation results; we don't need to introduce Binomial yet.*)
+The plot below displays the sampling distribution of $y$ for each of the possible values of $\theta$.
+When $\theta=0.1$ the distribution of $y$ is Binomial(25, 0.1); when $\theta=0.3$ the distribution of $y$ is Binomial(25, 0.3); etc.
+
+
+```{r sampling-distributions}
+
+n = 25
+
+sampling_distribution_table = expand_grid(theta,
+                                          y = 0:n) %>%
+  mutate(prob = dbinom(y, n, theta))
+
+
+sampling_distribution_table %>%
+  mutate(theta = factor(theta)) %>%
+  ggplot(aes(x = y,
+             y = prob,
+             col = theta)) +
+  geom_point() +
+  geom_line(linetype = "dotted") +
+  labs(y = "p(y|theta)",
+       title = "Sampling distribution of y given theta, for each possible value of theta") +
+  theme_bw()
+
+```
+
+
+# Reassessing plausibility {.tabset}
+
+
+Recall our prior distribution from Section 3 (Short solution).
+After observing sample data we will reassess the relative plausibility of possible values of $\theta$.
+Let's consider a few scenarios first.
+
+
+## Questions
+
+
+1. If we observe $y = 18$, which value do you think is the most plausible value of $\theta$?
+Why?
+
+
+1. If we observe $y = 15$, which value do you think is the most plausible value of $\theta$?
+Why?
+
+
+1. If we observe $y = 14$, do you think that 0.5 is necessarily the most plausible value of $\theta$?
+Why?
+
+
+## Short solution
+
+
+1. $y = 18$: $\theta = 0.7$ had highest prior plausibility, and has the highest likelihood of $y = 18$, so $\theta = 0.7$ has highest posterior plausibility
+
+
+1. $y = 15$: $\theta = 0.7$ and $\theta = 0.5$ have roughly the same likelihood of $y = 15$, but $\theta = 0.7$ had the higher prior plausibility, so $\theta = 0.7$ has highest posterior plausibility
+
+
+1. $y = 14$: $\theta = 0.7$ had highest prior plausibility, but $\theta = 0.5$ has the highest likelihood of $y = 14$, so it's not obvious which will have the higher posterior plausibility.
+
+
+We need a way to balance prior and likelihood.
+
+
+## Discussion
+
+
+
+(*This discussion assumes some familiarity with the idea of a likelihood function and maximum likelihood.*
+*These ideas could be discussed in more detail with students.*)
+
+1. Before observing any data, we assessed that 0.7 was the most plausible value of $\theta$.
+Now suppose we observe $y = 18$, for a sample proportion of $18 / 25 = 0.72$.
+The plot above shows that the likelihood of observing $y = 18$ is greatest when $\theta = 0.7$.
+In this sense, if $y = 18$ then $\theta = 0.7$ seems "most consistent" with the observed data.
+Since 0.7 was our most plausible value of $\theta$ prior to observing data, and $\theta = 0.7$ seems most consistent with the sample data, it seems that 0.7 should still be our most plausible value of $\theta$ after observing $y = 18$.
+
+1. Now suppose we observe $y = 15$, for a sample proportion of $15 / 25 = 0.60$.
+The plot above shows that the likelihood of observing $y = 15$ is about the same when $\theta = 0.5$ as when $\theta = 0.7$, so $\theta = 0.5$ and $\theta = 0.7$ seem equally consistent with the sample data (and more consistent than the other $\theta$ values.)
+However, before observing data we assessed that 0.7 was a more plausible value of $\theta$ than 0.5.
+Therefore, we might still consider 0.7 as the most plausible value of $\theta$ after observing $y = 15$ (though our plausibility of 0.5 might be greater than it was prior to observing data.)
+
+1. Now suppose we observe $y = 14$, for a sample proportion of $14 / 25 = 0.56$.
+The likelihood of observing $y = 14$ is greatest when $\theta = 0.5$.
+In this sense, if $y = 14$ then $\theta = 0.5$ seems "most consistent" with the observed data.
+However, before observing data we assessed that 0.7 was three times more plausible than 0.5 as a value of $\theta$.
+Also, the likelihood of observing $y = 14$ when $\theta = 0.7$ is not that small, though it is smaller than when $\theta = 0.5$.
+Therefore, if we observe $y = 14$ it's not so obvious which value --- 0.5 or 0.7 --- is a more plausible value of $\theta$.
+We initially thought 0.7 was the most plausible value of $\theta$, and maybe a sample of size 25 with $y = 14$ is not enough data to convince us otherwise.
+
+
+We need a way to balance our prior assessment with the observed sample data when reassessing plausibility of the possible values of $\theta$.
+
+
+# Revising our simulation to reflect prior plausibility {.tabset}
+
+
+We simulated values of $y$ for each of the possible $\theta$ values, but the values of $\theta$ were not equally plausible.
+
+
+## Questions
+
+1. How can we revise our simulation from before to reflect our prior assessment of plausible values of $\theta$?
+(*We start with this broad question, but students might need some additional prodding.*)
+
+
+1. Conduct a few repetitions of this simulation and [enter your results in this Google sheet](https://docs.google.com/spreadsheets/d/1zkVgI9avf_rOYFi0CtTC1xeIcKw61srKGcPENDq9_hY/edit?usp=sharing).
+Just pick a row and enter your results.
+(You can use R: to simulate a value of $\theta$ from the prior distribution try `sample(seq(0.1, 0.9, 0.2), 1, replace = TRUE, prob = c(1, 4, 3 * 4, 1.5 * 2 * 3 * 4, 2 * 3 * 4))`, and use `rbinom(1, 25, [simulated theta])` to simulate $y$.))
+(*With students, we would conduct some tactile simulations first and then use applets.*
+
+
+1. View the plot of the simulation results in the Google sheet.
+(There are plots from a simulation with more repetitions in the Short solution.)
+There are two sources of uncertainty/variability in the simulation.
+What are they?
+
+
+## Short solution
+
+
+First simulate a value of $\theta$ from the prior distribution, and given $\theta$, simulate $y$ as before.
+
+
+Here are a few repetitions of the simulation.
+
+
+```{r, ref.label = 'joint-simulation', echo = FALSE}
+
+```
+
+
+Here are some plots summarizing the simulation results.
+The plot on the left displays the $(\theta, y)$ pairs.
+The plot on the right displays the marginal distribution of $\theta$, which is (approximately) the prior distribution.
+
+```{r, ref.label = 'joint-simulation-plots', echo = FALSE, fig.show="hold", out.width="50%"}
+
+```
+
+
+There are two sources or uncertainty/variability: sample-to-sample variability of $y$ ("old"), and uncertainty in $\theta$ represented by a probability distribution ("new").
+
+
+## Discussion
+
+
+
+We can account for the relative prior plausibility of values of $\theta$ by conducting a "weighted simulation".
+Previously, we simulated many values of $y$ for each value of $\theta$.
+However, the values of $\theta$ are not equally plausible.
+For example, 0.7 is 36 times more plausible as a value of $\theta$ than 0.1.
+We want the simulation to give relatively more weight to more plausible values of $\theta$.
+Roughly, for every 1 repetition conducted using $\theta = 0.1$ we want to run 36 repetitions using $\theta = 0.7$.
+
+We can conduct such a simulation in two stages as follows:
+
+- Simulate a value of $\theta$ from its prior distribution (e.g., using a spinner like the one in the pie chart above that lands on 0.9 with probability 0.312, on 0.7 with probability 0.468, etc.)
+(*You can use `sample` in R with the `prob` argument, but with students we would use a tactile simulation or an applet.*)
+- Given $\theta$, simulate a value of $y$ from a Binomial(25, $\theta$) distribution, like we did above.
+(*Again, students do not need Binomial distributions; they could describe a tactile simulation, or use an applet.*)
+- Repeat many times and summarize the $(\theta, y)$ *pairs*.
+
+There are two sources or uncertainty/variability in this simulation.
+
+- For a given population proportion $\theta$, there is sample-to-sample variability in the sample count $y$.
+   - This source of uncertainty should be familiar from frequentist statistics.
+- There is uncertainty in the value of the population proportion $\theta$, represented by a probability distribution.
+   - This is what's "new" in Bayesian statistics.
+   - We can quantify this uncertainty both before observing data (prior distribution) and, as we'll do soon, after observing data (posterior distribution).
+
+
+## Code
+
+
+Here is some code that runs the simulation, along with the results of a few repetitions.
+
+```{r joint-simulation}
+
+n_rep = 100000
+
+# Simulate values of theta from the prior distribution
+theta_sim = sample(theta, n_rep, replace = TRUE, prob = prior)
+
+# For each simulated value of theta, simulate a value of y from Binomial(n, theta)
+y_sim = rbinom(n_rep, n, theta_sim)
+
+sim = data.frame(theta_sim,
+                 y_sim)
+
+# Display the (theta, y) results of a few repetitions
+sim %>%
+  head(10) %>%
+  kable()
+
+```
+
+
+Here are some plots summarizing the simulation results.
+The plot on the left displays the $(\theta, y)$ pairs.
+The plot on the right displays the marginal distribution of $\theta$, which is (approximately) the prior distribution.
+
+
+```{r joint-simulation-plots, fig.show="hold", out.width="50%"}
+
+# Plot the joint distribution of (theta, y) pairs
+sim %>%
+  ggplot(aes(x = theta_sim,
+             y = y_sim)) +
+  geom_jitter(width = 0.02, height = 0.2, shape = 21, alpha = 0.5) +
+  scale_x_continuous(name = "theta",
+                     limits = c(0, 1),
+                     breaks = theta) +
+  scale_y_continuous(name = "y",
+                     breaks = seq(0, n, 5)) +
+  labs(title = "Simulated joint distribution of theta and y") +
+  theme_bw()
+
+# Summarize the theta values and plot the marginal distribution of theta
+sim %>%
+  count(theta_sim, name = "freq") %>%
+  mutate(rel_freq = freq / sum(freq)) %>%
+  ggplot(aes(x = theta_sim,
+             y = rel_freq)) +
+  geom_point(col = bayes_col[1], size = 2) +
+  geom_line(linetype = "dashed", col = bayes_col[1], size = 1) +
+  scale_x_continuous(limits = c(0, 1),
+                     breaks = theta) +
+  labs(title = "Simulated marginal distribution of theta: approximate prior distribution of theta",
+       y = "Approximate probability",
+       x = "theta") +
+  theme_bw()
+
+```
+
+
+# Reassessing plausibility given sample data via simulation {.tabset}
+
+
+So far we have considered what might happen when we collect sample data.
+But now let's suppose we have actually collected data.
+In particular, suppose that we observe $y = 14$ students agreeing with the iterative statement in a sample of $n = 25$ students.
+
+
+## Questions
+
+
+1. How might we use the results of the simulation in the previous section to reassess our plausibility of 0.1, 0.3, 0.5, 0.7, 0.9 as values of $\theta$ given the sample data?
+(*We start with this broad question, but students might need some additional prodding.*)
+
+
+1. Use the plots from the previous section to (roughly) rank 0.1, 0.3, 0.5, 0.7, 0.9 from most to least plausible as values of $\theta$.
+
+
+## Short solution
+
+
+The key to reassessing plausibility is to consider the **conditional distribution of $\theta$ given the sample data $y = 14$**.
+We can approximate this **posterior distribution** of $\theta$ by extracting the repetitions with $y = 14$ and summarizing the simulated values of $\theta$.
+
+From the previous simulation results, we extract and summarize the $\theta$ values corresponding to $y = 14$.
+
+```{r, ref.label = 'posterior-simulation', echo = FALSE}
+
+```
+
+
+```{r, ref.label = 'posterior-simulation-table', echo = FALSE}
+
+```
+
+
+The plot on the left below is the simulated joint distribution of $(\theta, y)$ pairs from before, with repetitions with $y = 14$ highlighted.
+Slicing out this row and summarizing the $\theta$ values approximates the posterior distribution, displayed in the plot on the right.
+
+
+```{r, ref.label = 'posterior-simulation-plots', fig.show="hold", out.width="50%", echo = FALSE}
+
+```
+
+
+## Discussion
+
+
+
+The simulated marginal distribution of $\theta$ is based on all simulated values of $\theta$, and approximates the prior distribution.
+Given the observed $y = 14$, we zoom in on the simulated $\theta$ values corresponding to $y = 14$; what is the distribution of $\theta$ values among simulated repetitions with $y = 14$?
+
+In the joint distribution plot above, focus on the row of dots corresponding to $(\theta, y)$ pairs with $y = 14$.
+Values of $\theta$ with relative more dots are relatively more plausible.
+Simulation suggests that 0.5 and 0.7 are the most plausible values of $\theta$ (it's hard to tell which one is more plausible), followed by 0.3, while 0.1 and 0.9 have very little plausibility.
+Remember that this simulation reflects both our prior assessment of plausibility and the sample-to-sample variability of $y$.
+In this way, the posterior assessment is a compromise between prior and data/likelihood.
+
+The key to reassessing plausibility is to consider the **conditional distribution of $\theta$ given the sample data $y = 14$**.
+We can approximate this **posterior distribution** of $\theta$ by extracting the repetitions with $y = 14$ and summarizing the simulated values of $\theta$.
+
+
+## Code
+
+
+From the previous simulation results, we extract and summarize the $\theta$ values corresponding to $y = 14$.
+
+```{r posterior-simulation}
+
+# Observed data
+y_obs = 14
+
+# Only keep simulated (theta, y) pairs with y = 14
+sim %>%
+  filter(y_sim == y_obs) %>%
+  head(10) %>%
+  kable()
+
+```
+
+
+```{r posterior-simulation-table}
+
+# Only keep (theta, y) pairs with y = 14, and summarize the theta values
+sim_posterior_table = sim %>%
+  filter(y_sim == y_obs) %>% # condition on observed data
+  count(theta_sim, name = "freq") %>%
+  mutate(rel_freq = freq / sum(freq))
+
+# Display the approximate posterior distribution in a table
+sim_posterior_table %>%
+  adorn_totals("row") %>%
+  kable(col.names = c("theta",
+                      paste("Simulated repetitions with y =", y_obs),
+                      "Approximate posterior probability"),
+        digits = 4)
+
+```
+
+
+The plot on the left below is the simulated joint distribution of $(\theta, y)$ pairs from before, with repetitions with $y = 14$ highlighted.
+Slicing out this row and summarizing the $\theta$ values approximates the posterior distribution, displayed in the plot on the right.
+The simulation suggests that, given $y=14$ successes, 0.7 and 0.5 account for almost all of our plausibility, and 0.7 remains the most plausible value of $\theta$.
+We'll investigate the posterior distribution further below.
+
+
+```{r posterior-simulation-plots, fig.show="hold", out.width="50%"}
+
+# Plot the simulated (theta, y) pairs from before, with y = 14 highlighted
+sim %>%
+  mutate(given_y_obs = (y_sim == y_obs)) %>%
+  ggplot(aes(x = theta_sim,
+             y = y_sim,
+             fill = given_y_obs)) +
+  geom_jitter(width = 0.02, height = 0.2, shape = 21, alpha = 0.5) +
+  scale_fill_manual(values = c("white", bayes_col[3]),
+                    name = "y",
+                    labels = c(paste("not ", y_obs), paste(y_obs))) +
+  scale_x_continuous(name = "theta",
+                     limits = c(0, 1),
+                     breaks = theta) +
+  scale_y_continuous(name = "y",
+                     breaks = seq(0, n, 5)) +
+  labs(title = "Simulated joint distribution of theta and y") +
+  theme_bw()
+
+# Plot the simulated conditional distribution of theta given y = 14
+sim_posterior_table %>%
+  ggplot(aes(x = theta_sim,
+             y = rel_freq)) +
+  geom_point(col = bayes_col[1], size = 2) +
+  geom_line(linetype = "dashed", col = bayes_col[3], size = 1) +
+  scale_x_continuous(limits = c(0, 1),
+                     breaks = theta) +
+  labs(title = paste("Simulated conditional distribution of theta given y = ", y_obs, ":\n approximate posterior distributikon of theta"),
+       y = "Approximate probability",
+       x = "theta") +
+  theme_bw()
+
+```
+
+
+# Posterior is proportional to the product of prior and likelihood {.tabset}
+
+
+We have used simulation to approximate the posterior distribution of $\theta$ given $y = 14$.
+Now we will see how the posterior distribution can be derived from the prior distribution and the likelihood (which depends on the sample data).
+
+
+## Questions
+
+
+1. Prior to observing data, how many times more plausible is 0.7 as the value of $\theta$ than 0.5?
+
+
+1. How many times as likely is observing $y = 14$ when $\theta = 0.7$ than when $\theta = 0.5$?
+(*You can compute this using `dbinom`.*
+*We would have students use an applet, but they can also eyeball the ratio from the earlier plot with the sampling distributions.*)
+
+
+1. After observing data, how many times more plausible is 0.7 as the value of $\theta$ than 0.5?
+(The simulated relative frequencies are approximations of the true posterior probabilities of 0.5447 for 0.7 and 0.4504 for 0.5.)
+
+
+1. In what relatively simple way are the values in the previous three parts related?
+(Since simulated values are only approximations, if you based your ratios on simulated values you need to think in terms of $\approx$ rather than =.
+If you use the theoretical likelihoods (from `dbinom`) and posterior probabilities (provided), you can see an = relationship.)
+
+
+1. Suggest a general principle for finding relative posterior plausibility of any two possible values of $\theta$ (like 0.7 and 0.5).
+
+
+1. Given relative posterior plausibilities for all possible values of $\theta$, explain how you would find the posterior distribution?
+(Hint: remember how we found the prior distribution from relative prior plausibilities.)
+
+1. Describe how you might compute the posterior distribution without using simulation.
+Think in terms of a spreadsheet; what are the rows?
+What are the necessary columns and how would you fill them in?
+
+
+## Short solution
+
+
+1. Prior to observing data, we assumed that 0.7 was 3 times more plausible as the value of $\theta$ than 0.5.
+
+
+1. The likelihood of $y = 14$ is `r round(dbinom(y_obs, n, 0.7), 4)` when $\theta = 0.7$ and `r round(dbinom(y_obs, n, 0.5), 4)` when $\theta = 0.5$, a ratio of `r round(dbinom(y_obs, n, 0.7) / dbinom(y_obs, n, 0.5), 4)`.
+
+
+1. After observing data, 0.7 is 1.2 (= 0.5447 / 0.4504) times more plausible as the value of $\theta$ than 0.5.
+
+
+1. Note that 1.2 = (3)(0.4).
+
+
+1. **Posterior is proportional to the product of prior and likelihood**.
+
+
+1. Rescale the values to sum to 1.
+
+
+1. The posterior distribution can be computed in a spreadsheet form, sometimes called a  "Bayes table".
+
+- There is one row for each possible value of $\theta$.
+- There is a column for the prior distribution of $\theta$, containing the prior probability of each value of $\theta$.
+- There is a column for the likelihood of the sample data computed for each possible value of $\theta$.
+In this example, we compute the likelihood of observing $y = 14$ from a Binomial(25, $\theta$) distribution for each value of $\theta$ (e.g., using `dbinom(14, 25, theta)`.)
+- For each value of $\theta$, compute the product of prior and likelihood.
+This product column provides the relative posterior probabilities.
+- Rescale the values in the product column to sum to 1 to obtain a column for the posterior distribution, containing the posterior probability of each value of $\theta$.
+
+
+
+
+
+```{r, ref.label = 'bayes-table', echo = FALSE}
+
+```
+
+
+
+```{r, ref.label = 'bayes-plot', echo = FALSE}
+
+```
+
+
+## Discussion
+
+
+
+1. Prior to observing data, we assumed that 0.7 was 3 times more plausible as the value of $\theta$ than 0.5.
+
+
+1. The likelihood of $y = 14$ is `r round(dbinom(y_obs, n, 0.7), 4)` when $\theta = 0.7$ and `r round(dbinom(y_obs, n, 0.5), 4)` when $\theta = 0.5$, a ratio of `r round(dbinom(y_obs, n, 0.7) / dbinom(y_obs, n, 0.5), 4)`.
+Observing a sample with $y = 14$ is `r round(dbinom(y_obs, n, 0.7) / dbinom(y_obs, n, 0.5), 4)` times as likely when $\theta = 0.7$ than when $\theta = 0.5$.
+(*With students we would spend more time on interpreting the likelihoods themselves: If the population proportion is $\theta = 0.5$ then `r 100 * round(dbinom(y_obs, n, 0.5), 4)` percent of samples of size $n = 25$ yield $y = 14$ successes; 2.5 times (1 / 0.4) as many samples of size $n = 25$ result in $y = 14$ successes when $\theta = 0.5$ than when $\theta = 0.7$.*)
+
+
+1. After observing data, 0.7 is 1.2 (= 0.5447 / 0.4504) times more plausible as the value of $\theta$ than 0.5.
+
+
+1. Note that 1.2 = (3)(0.4).
+
+
+1. The ratio of the posterior probabilities is equal to the product of the ratio of the prior probabilities and the ratio of the likelihoods.
+That is, the posterior probability of a value of $\theta$ is proportional to the product of its prior probability and the likelihood of observing the sample data given the value of $\theta$.
+In short, **posterior is proportional to the product of prior and likelihood**.
+
+
+1. As with the prior distribution, if we have relative plausibilities we simply need to rescale the values to sum to 1 to represent a probability distribution (accounting for 100% of plausibility).
+
+1. The posterior distribution can be computed in a spreadsheet form, sometimes called a  "Bayes table".
+
+- There is one row for each possible value of $\theta$.
+- There is a column for the prior distribution of $\theta$, containing the prior probability of each value of $\theta$.
+- There is a column for the likelihood of the sample data computed for each possible value of $\theta$.
+In this example, we compute the likelihood of observing $y = 14$ from a Binomial(25, $\theta$) distribution for each value of $\theta$ (e.g., using `dbinom(14, 25, theta)`.)
+- For each value of $\theta$, compute the product of prior and likelihood.
+This product column provides the relative posterior probabilities.
+- Rescale the values in the product column to sum to 1 to obtain a column for the posterior distribution, containing the posterior probability of each value of $\theta$.
+
+
+
+
+## Code
+
+
+```{r bayes-table}
+
+n = 25
+
+y_obs = 14
+
+# Construct the Bayes table spreadsheet
+# prior_table from before contains theta values and the prior distribution
+# we add columns for likelihood, product, and posterior
+
+bayes_table = prior_table %>%
+  select(-units) %>%
+  mutate(likelihood = dbinom(y_obs, n, theta), # depends on sample data
+         product = prior * likelihood,
+         posterior = product / sum(product))
+
+# Display the Bayes table
+bayes_table %>%
+  adorn_totals("row") %>%
+  kable(col.names = c("theta",
+                      "Prior probability",
+                      paste("Likelihood of count of ", y_obs),
+                      "Product",
+                      "Posterior probability"),
+        digits = 4)
+
+```
+
+
+The following plot displays the prior distribution, the likelihood function, and the posterior distribution.
+We see that the posterior distribution is a compromise between prior distribution and the likelihood.
+(The likelihood function is NOT a probability distribution and will not sum to anything in particular.
+However, in order to plot on a similar scale, the likelihood has been scaled to sum to 1.)
+
+
+```{r bayes-plot}
+
+bayes_table %>%
+  mutate(likelihood = likelihood / sum(likelihood)) %>% # scale likelihood for plotting only
+  select(-product) %>%
+  pivot_longer(!theta,
+               names_to = "source",
+               values_to = "prob") %>%
+  mutate(source = fct_relevel(source, "prior", "likelihood", "posterior")) %>%
+  ggplot(aes(x = theta,
+             y = prob,
+             col = source)) +
+  geom_point(size = 2) +
+  geom_line(aes(linetype = source), size = 1) +
+  scale_x_continuous(limits = c(0, 1),
+                     breaks = theta) +
+  scale_color_manual(values = bayes_col) +
+  scale_linetype_manual(values = bayes_lty) +
+  theme_bw()
+
+```
+
+
+# A more realistic scenario {.tabset}
+
+
+So far we have assumed that $\theta$ can only be 0.1, 0.3, 0.5, 0.7, 0.9.
+But in reality $\theta$ is a proportion which can take any value in [0, 1].
+We will now consider prior and posterior distributions that assign plausibility to (almost) the full range of [0, 1] values.
+
+
+## Questions
+
+
+1. Suppose our prior distribution for $\theta$ is (proportional to) a Normal distribution with mean 0.7 and standard deviation 0.15 (truncated to [0, 1]).
+Roughly, what does this distribution say about our prior assessment of plausibility?
+*We're assuming that students are familiar with the 68-95-99.7 percent rule.*
+(We'll investigate continuous distributions in more detail in following activities.)
+
+
+1. We'll continue to assume the same sample data as before: $n = 25$ and $y = 14$.
+We have seen two methods for computing/approximating a posterior distribution: simulation and spreadsheet/Bayes table.
+We will discuss simulation in more detail in following activities.
+For now, we'll focus on spreadsheet/Bayes table.
+Describe how you would use a Bayes table to compute the posterior distribution of $\theta$ given $y = 14$.
+Hint: of course you can't have one row for every value in [0, 1]; what seems like a reasonable approximation?
+(*We're skipping straight to the full posterior distribution, but with students we suggest first doing a few calculations like the ones comparing 0.7 and 0.5 above.*)
+
+
+1. The plot below displays the posterior distribution.
+Describe the posterior distribution.
+What are some questions you could use the posterior distribution to answer?
+What are some useful summary characteristics of the posterior distribution?
+
+
+1. We will use the posterior distribution to obtain interval estimates of $\theta$.
+Compute and interpret a 68% posterior credible interval for $\theta$.
+
+
+1. Compute and interpret a 95% credible interval for $\theta$.
+
+
+## Short solution
+
+
+Grid approximation: possible values of $\theta$, 0, 0.0001, 0.0002, 0.0003, $\ldots$, 0.9998, 0.9999, 1.
+Selected rows of the Bayes table:
+
+```{r, ref.label = 'bayes-table-grid', echo = FALSE}
+
+```
+
+
+```{r, ref.label = 'bayes-plot-grid', echo = FALSE}
+
+```
+
+
+
+The posterior distribution of $\theta$ is approximately Normal with posterior mean 0.597 and posterior standard deviation 0.079.
+
+A 68% posterior credible interval for $\theta$ is [0.518, 0.676].
+There is a posterior probability of 68% that between 51.8 and 67.6 percent of current students agree with the iterative statement.
+It is roughly 2.1 times more plausible that the population proportion of current students who agree with the iterative statement lies inside the interval [0.518, 0.676] than outside.
+
+
+
+## Discussion
+
+
+
+1. The Normal prior distribution suggests our "best guess" for $\theta$ is 0.7.
+The interval [0.55, 0.85] accounts for 68% of prior plausibility; before observing data it's about 2.1 times more plausible that $\theta$ lies in the interval [0.55, 0.85] than outside.
+The interval [0.4, 1] accounts for 95% of prior plausibility; before observing data it's about 19 times more plausible that $\theta$ lies above 0.4 than below.
+
+
+1. We really want to assign plausibility to all values in the continuous interval [0, 1].
+One way to bridge the gap is to consider a fine grid of values in [0, 1], rather than all possible values.
+We'll consider the possible values of $\theta$ to be 0, 0.0001, 0.0002, 0.0003, $\ldots$, 0.9998, 0.9999, 1.
+The process for constructing a Bayes table works as before; it's just a much longer table.
+
+   - There is one row for each possible value of $\theta$: 0, 0.0001, 0.0002, 0.0003, $\ldots$, 0.9998, 0.9999, 1.
+   - The prior column is filled in with the Normal(0.7, 0.15) density, `dnorm(theta, 0.7, 0.15)`, rescaled to sum to 1.
+   - Since the sample data is the same as before, the computation of the likelihood has not changed --- `dbinom(14, 25, theta)` --- we're just computing likelihood for many more values of $\theta$.
+   - For each value of $\theta$, compute the product of prior and likelihood.
+This product column provides the relative posterior probabilities.
+   - Rescale the values in the product column to sum to 1 to obtain a column for the posterior distribution, containing the posterior probability of each value of $\theta$.
+
+
+1. Remember that the primary goal is to make conclusions about the population based on sample data.
+We can use the posterior distribution to formulate conclusions.
+The posterior distribution is approximately Normal.
+We might be interested in summary statistics like posterior mean or standard deviation.
+We might be interested in posterior probabilities or intervals.
+Here we just compute a few credible intervals.
+We will explore how to interpret and use the posterior distribution in the next activity.
+
+
+1. The posterior distribution of $\theta$ is approximately Normal with posterior mean 0.597 and posterior standard deviation 0.079.
+We can use the 68-95 percent rule to compute credible intervals.
+(*Using the grid approximation, the posterior distribution of $\theta$ is discrete so we can computed mean and standard deviation using sums.*
+*We could also compute quantiles based on the discrete posterior, though the code is a little more complicated.*
+*Here, we use the 68-95 rule to compute credible intervals because it's familar to students.*
+*Also, while grid approximation is a good way to introduce ideas, in practice simulation is almost always used to approximate the posterior distribution, so we don't focus too much on computing based on discrete posterior distributions.*)
+
+    A 68% posterior credible interval for $\theta$ is [0.518, 0.676].
+There is a posterior probability of 68% that between 51.8 and 67.6 percent of current students agree with the iterative statement.
+It is roughly 2.1 times more plausible that the population proportion of current students who agree with the iterative statement lies inside the interval [0.518, 0.676] than outside.
+
+
+1. A 95% posterior credible interval for $\theta$ is [0.439, 0.755].
+There is a posterior probability of 95% that between 43.9 and 75.5 percent of current students agree with the iterative statement.
+It is roughly 19 times more plausible that the population proportion of current students who agree with the iterative statement lies inside the interval [0.439, 0.755] than outside.
+
+
+## Code
+
+
+The code below constructs the Bayes table.
+Notice that the code is relatively short, and can be implemented in a spreadsheet.
+Only a few select rows of the table are displayed.
+
+```{r bayes-table-grid}
+
+# possible values of theta - grid approximation
+theta = seq(0, 1, 0.0001)
+
+# prior distribution
+prior = dnorm(theta, 0.7, 0.15)
+
+# rescale prior to sum to 1
+prior = prior / sum(prior)
+
+# sample data
+n = 25
+y = 14
+
+# likelihood
+likelihood = dbinom(y, n, theta)
+
+# posterior
+product = prior * likelihood
+posterior = product / sum(product)
+
+
+bayes_table = data.frame(theta,
+                         prior,
+                         likelihood,
+                         product,
+                         posterior)
+
+# Display select rows of the Bayes table
+bayes_table %>%
+  slice(seq(6001, 8001, 250)) %>% # selects a few rows to display
+  kable(digits = 8)
+
+```
+
+The following plot displays the prior distribution, the likelihood function, and the posterior distribution.
+We see that the posterior distribution is a compromise between prior distribution and the likelihood.
+(The likelihood function is NOT a probability distribution and will not sum to anything in particular.
+However, in order to plot on a similar scale, the likelihood has been scaled to sum to 1.)
+
+
+```{r bayes-plot-grid}
+
+bayes_table %>%
+  mutate(likelihood = likelihood / sum(likelihood)) %>% # scale likelihood for plotting only
+  select(-product) %>%
+  pivot_longer(!theta,
+               names_to = "source",
+               values_to = "prob") %>%
+  mutate(source = fct_relevel(source, "prior", "likelihood", "posterior")) %>%
+  ggplot(aes(x = theta,
+             y = prob,
+             col = source)) +
+  geom_line(aes(linetype = source)) +
+  scale_color_manual(values = bayes_col) +
+  scale_linetype_manual(values = bayes_lty) +
+  theme_bw()
+
+```
+
+
+Here we compute the posterior mean and standard deviation based on formulas for a discrete distribution, but typically we would just use `mean` and `sd` on values of $\theta$ simulated from the posterior distribution.
+
+
+```{r}
+
+posterior_mean = sum(theta * posterior)
+
+posterior_sd = sqrt(sum(theta ^ 2 * posterior) - posterior_mean ^ 2)
+
+posterior_mean; posterior_sd
+
+```
+
+
+
+# Wrap up {.tabset}
+
+
+## Summary
+
+
+- In Bayesian statistical analyses, parameters are treated as random variables with prior/posterior probability distributions that quantify our degree of uncertainty or plausibility about parameters before/after observing data.
+- The posterior distribution is the conditional distribution of parameters given the observed data
+- We update distributions a relatively simple formula: posterior is proportional to the product of prior and likelihood
+- Computation of the posterior distribution can be illustrated in relatively simple spreadsheets.
+- Posterior distributions can be (and usually are) approximated with simulation
+- Parameters can be estimated with credible intervals based obtained from prior/posterior distributions.
+
+
+
+## Comments
+
+
+- Activities like these can be used with students with little to no background in probability or statistics.
+- Bayesian statistics does not necessarily involve more math than frequentist statistics.
+- Can teach Bayesian statistics using a Simulation-based approach.
+- The Bayesian approach is natural for many students, especially in comparison with null hypothesis testing.
+- Bayesian analyses are inherently multivariable (because parameters are variables), giving students lots of experience with multivariable thinking (a GAISE guideline).
+- Students, especially students with little background in statistics, often have less hesitation to using Bayesian statistics than their teachers do!
+- Choice of prior is just one assumption.
+Don't spend too much time on choosing the prior.
+It's the posterior that matters!
+- One common criticism of the Bayesian paradigm is that it rests on a subjective interpretation of probability, which seems (at first glance anyway) to lack the principle of objectivity on which science prides itself.
+However, any statistical analysis is inherently subjective, filled with many assumptions and decisions along the way.
+Subjectivity is OK, and often beneficial, allowing us to explicitly incorporate a wealth of past experience into our analysis.
+- Remember, Bayesian statistics is statistics.
+The same best practices that you use in other classes still apply.
+In particular, focus on conceptual understanding rather than calculus, computation, or coding. 
+- While there is some code provided, the core components of finding the posterior distribution via simulation or grid approximation can be done with simple code or spreadsheets.
+(Most of the longer code is for summarizing or plotting.)
+- Students need not be required to write or run code.
+Especially when first introducing Bayesian ideas, we provide students with any code or output, and focus their attention on describing the process and interpreting output.
+
+
+## Further questions to investigate with students
+
+
+- How does the posterior compare to the prior?
+- Which values are more/less plausible according to the posterior than the prior?
+- How does changing the prior influence the posterior?
+- How sensitive is the posterior to choice of prior?
+- How does changing the sample proportion influence the posterior?
+- How does changing the sample size influence in the posterior?
+- How do we summarize the posterior distribution?
+- How does the mean of the posterior distribution relate to the mean of the prior distribution and the observed sample proportion?
+- How do we interpret the posterior standard deviation?
+- How plausible is it that more than [blank] percent of students agree with the iterative statement?
+- How do the results at our college/university compare to the results from the Pew Research Survey?
+- Be sure to also include plenty of "usual" statistics questions like:
+How was the sample selected?
+How were the variables measured?
+Are there any potential, important sources of bias?
+- Depending on the class, we might also compare our Bayesian analysis to a frequentist analysis, both in terms of numerical results and interpretation.
+
+
+## Resources
+
+
+- Kevin's notes: [*An Introduction to Bayesian Reasoning and Methods*](https://bookdown.org/kevin_davisross/bayesian-reasoning-and-methods/)
+- Monika's book with Jim Albert: [*Probability and Bayesian Modeling*](https://bayesball.github.io/BOOK/probability-a-measurement-of-uncertainty.html)
+- JSDSE paper ["Teaching an Undergraduate Course in Bayesian Statistics: A Panel Discussion"](https://doi.org/10.1080/10691898.2020.1845499)
