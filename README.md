@@ -35,4 +35,4 @@
 
 
 ### Links to resources
-
+- A GitHub [repo](https://github.com/monika76five/Undergrad-Bayesian-Course) on Vassar’s Bayesian Statistics course material (lectures, labs, homework, cases studies etc.)
