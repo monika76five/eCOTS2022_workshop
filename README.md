@@ -36,3 +36,5 @@
 
 ### Links to resources
 - A GitHub [repo](https://github.com/monika76five/Undergrad-Bayesian-Course) on Vassar’s Bayesian Statistics course material (lectures, labs, homework, cases studies etc.)
+- A GitHub [repo](https://monika76five.github.io/Undergrad-Bayesian-Education-Resources/) on various resources for undergraduate Bayesian education
+- The [Undergraduate Bayesian Education Network](https://undergrad-bayes.netlify.app/network.html) with resources and an associated Slack channel for you to join!
