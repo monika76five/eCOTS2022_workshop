@@ -266,7 +266,7 @@ ggplot(df,
 
 - Two sources of variability in $Y_{ij}$:
 \begin{eqnarray*}
-Y_{ij} &\overset{i.i.d.}{\sim}& \textrm{Normal}(\mu, \sigma) \,\,\, \text{[within-group variability]} \\
+Y_{ij} &\overset{i.i.d.}{\sim}& \textrm{Normal}(\mu_j, \sigma) \,\,\, \text{[within-group variability]} \\
 \mu_j &\sim& \textrm{Normal}(\mu, \tau) \,\,\, \text{[between-group variability]}
 \end{eqnarray*}
 
